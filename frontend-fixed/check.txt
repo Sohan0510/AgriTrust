@@ -1,0 +1,1 @@
+<h2 class="text-6xl mb-6" style="opacity: 1; transform: none;">Building <span class="text-emerald-400">Trust</span> in Agriculture<br>with <span class="text-emerald-400">Decentralized Data</span></h2>

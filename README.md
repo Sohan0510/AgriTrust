@@ -21,7 +21,7 @@ It builds **Merkle trees** from farm IoT readings, gets **independent witness si
 ## 🧩 Project Structure
 
 ONG/
-└── KSSEM-HIO25-071-test2/
+└── AgriTrust/
 ├── backend/
 │ ├── server.js # Main Express backend
 │ ├── Dockerfile

@@ -44,10 +44,6 @@ ONG/
 ├── witness-server.js # ED25519 signer microservice
 └── package.json
 
-yaml
-Copy code
-
----
 
 ## 🧠 How It Works
 

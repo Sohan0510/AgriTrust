@@ -20,7 +20,6 @@ It builds **Merkle trees** from farm IoT readings, gets **independent witness si
 
 ## 🧩 Project Structure
 
-ONG/
 └── AgriTrust/
 ├── backend/
 │ ├── server.js # Main Express backend

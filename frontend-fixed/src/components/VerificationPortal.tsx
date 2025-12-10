@@ -88,7 +88,7 @@ export function VerificationPortal() {
             )}
 
             <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-              <div className="text-blue-400 mt-0.5">ℹ</div>
+              <div className="text-blue-400 mt-0.5"></div>
               <p className="text-blue-300 text-sm">
                 This verification is completely trustless - it recomputes the hash, validates the Merkle proof path, 
                 and confirms witness signatures without querying the farmer's database.

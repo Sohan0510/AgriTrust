@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { Shield, Server, CheckCircle2, Clock, Globe, Zap, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -10,6 +10,7 @@ export function WitnessNetwork() {
   const [selectedWitness, setSelectedWitness] = useState<any>(null);
   const [liveSignatures, setLiveSignatures] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const pageLoadRef = useRef<number>(Date.now()); // used to filter out historical signatures
 
   useEffect(() => {
     fetchWitnessData();
@@ -22,9 +23,12 @@ export function WitnessNetwork() {
       const response = await api.witnesses.getAll();
       // Extract witnesses array from response
       const witnessesArray = response.data.witnesses || [];
+      // Show all witnesses (active + inactive) as returned by backend so the UI reflects full network state
       setWitnesses(witnessesArray);
       if (witnessesArray.length > 0) {
         setSelectedWitness(witnessesArray[0]);
+      } else {
+        setSelectedWitness(null);
       }
     } catch (error) {
       console.error('Failed to fetch witness data:', error);
@@ -38,7 +42,12 @@ export function WitnessNetwork() {
       const response = await api.witnesses.getSignatures(10);
       // Extract signatures array from response
       const signaturesArray = response.data.signatures || [];
-      setLiveSignatures(signaturesArray);
+      // Only keep signatures that arrived after page load so historical ones are hidden
+      const liveOnly = signaturesArray.filter((sig: any) => {
+        const ts = sig.timestamp ? new Date(sig.timestamp).getTime() : 0;
+        return ts >= pageLoadRef.current;
+      });
+      setLiveSignatures(liveOnly);
     } catch (error) {
       console.error('Failed to fetch live signatures:', error);
     }
@@ -182,9 +191,9 @@ export function WitnessNetwork() {
                         <div className="flex items-center gap-4 text-sm text-slate-400">
                           <span className="flex items-center gap-1">
                             <Globe className="size-3" />
-                            {witness.location}
+                            {witness.url || witness.location || 'Unknown'}
                           </span>
-                          {witness.latency && (
+                          {witness.latency > 0 && (
                             <span className="flex items-center gap-1">
                               <Zap className="size-3" />
                               {witness.latency}ms
@@ -194,7 +203,7 @@ export function WitnessNetwork() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-white text-sm">{witness.signaturesCount?.toLocaleString() || 0}</p>
+                      <p className="text-white text-sm">{(witness.signatureCount || witness.signaturesCount || 0).toLocaleString()}</p>
                       <p className="text-slate-400 text-xs">signatures</p>
                     </div>
                   </div>
@@ -268,13 +277,20 @@ export function WitnessNetwork() {
                     </div>
                   )}
 
-                  {selectedWitness.location && (
+                  {(selectedWitness.url || selectedWitness.location) && (
                     <div>
-                      <p className="text-slate-400 text-sm mb-2">Location</p>
+                      <p className="text-slate-400 text-sm mb-2">Endpoint</p>
                       <div className="flex items-center gap-2">
                         <Globe className="size-4 text-blue-400" />
-                        <p className="text-white">{selectedWitness.location}</p>
+                        <p className="text-white font-mono text-sm">{selectedWitness.url || selectedWitness.location}</p>
                       </div>
+                    </div>
+                  )}
+
+                  {selectedWitness.publicKey && (
+                    <div>
+                      <p className="text-slate-400 text-sm mb-2">Public Key</p>
+                      <p className="text-white font-mono text-xs break-all">{selectedWitness.publicKey}</p>
                     </div>
                   )}
 
@@ -309,9 +325,9 @@ export function WitnessNetwork() {
                     </div>
                   )}
 
-                  {selectedWitness.latency && (
+                  {selectedWitness.latency > 0 && (
                     <div>
-                      <p className="text-slate-400 text-sm mb-2">Avg Latency</p>
+                      <p className="text-slate-400 text-sm mb-2">Latency</p>
                       <div className="flex items-center gap-2">
                         <Zap className="size-4 text-blue-400" />
                         <p className="text-white">{selectedWitness.latency}ms</p>
@@ -319,10 +335,15 @@ export function WitnessNetwork() {
                     </div>
                   )}
 
-                  {selectedWitness.signaturesCount !== undefined && (
+                  <div>
+                    <p className="text-slate-400 text-sm mb-2">Total Signatures</p>
+                    <p className="text-white text-2xl">{(selectedWitness.signatureCount || selectedWitness.signaturesCount || 0).toLocaleString()}</p>
+                  </div>
+
+                  {selectedWitness.lastSignature && (
                     <div>
-                      <p className="text-slate-400 text-sm mb-2">Total Signatures</p>
-                      <p className="text-white text-2xl">{selectedWitness.signaturesCount.toLocaleString()}</p>
+                      <p className="text-slate-400 text-sm mb-2">Last Signature</p>
+                      <p className="text-white text-sm">{new Date(selectedWitness.lastSignature).toLocaleString()}</p>
                     </div>
                   )}
                 </>

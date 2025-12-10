@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Users, AlertTriangle, CheckCircle2, TrendingUp, Eye, Shield, Zap, Lock } from 'lucide-react';
+import { Users, AlertTriangle, CheckCircle2, TrendingUp, Eye, Shield, Zap, Lock, FileText, X, Calendar, Hash, Activity } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -49,6 +49,9 @@ export function AdminDashboard() {
   const [verifying, setVerifying] = useState<string | null>(null);
   const [verificationResults, setVerificationResults] = useState<Record<string, VerificationResult>>({});
   const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [showFullReport, setShowFullReport] = useState(false);
+  const [fullReportData, setFullReportData] = useState<any>(null);
+  const [loadingReport, setLoadingReport] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -110,6 +113,44 @@ export function AdminDashboard() {
       }));
     } finally {
       setVerifying(null);
+    }
+  };
+
+  const viewFullReport = async (farmer: Farmer) => {
+    try {
+      setLoadingReport(true);
+      setShowFullReport(true);
+      
+      // Fetch detailed farmer data
+      const response = await api.dashboard.getFarmerDetails(farmer._id);
+      console.log('[AdminDashboard] Full report data:', response.data);
+      
+      // Also get verification result if not already done
+      let verifyData = verificationResults[farmer._id]?.details;
+      if (!verifyData) {
+        try {
+          const verifyResponse = await api.verification.verifyFarmerWindow(farmer._id, 21);
+          verifyData = verifyResponse.data;
+        } catch (e) {
+          console.error('Could not fetch verification data:', e);
+        }
+      }
+      
+      setFullReportData({
+        farmer: response.data.farmer,
+        trustScore: response.data.trustScore,
+        auditRecords: response.data.auditRecords || [],
+        recentReadings: response.data.recentReadings || [],
+        devices: response.data.devices || [],
+        anchorsCount: response.data.anchorsCount || 0,
+        readingsCount: response.data.readingsCount || 0,
+        verification: verifyData
+      });
+    } catch (error: any) {
+      console.error('Failed to fetch full report:', error);
+      setFullReportData({ error: 'Failed to load report data' });
+    } finally {
+      setLoadingReport(false);
     }
   };
 
@@ -424,9 +465,244 @@ export function AdminDashboard() {
                     Close
                   </Button>
                   <Button
+                    onClick={() => viewFullReport(selectedFarmer)}
                     className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white"
                   >
+                    <FileText className="size-4 mr-2" />
                     View Full Report
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Full Report Modal */}
+      {showFullReport && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+          onClick={() => setShowFullReport(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+          >
+            <Card className="bg-slate-900 border-slate-700">
+              <CardHeader className="flex flex-row items-center justify-between sticky top-0 bg-slate-900 z-10 border-b border-slate-700">
+                <CardTitle className="text-white flex items-center gap-2">
+                  <FileText className="size-5 text-emerald-400" />
+                  Full Integrity Report
+                  {fullReportData?.farmer && (
+                    <Badge variant="outline" className="ml-2 border-slate-600 text-slate-300">
+                      {fullReportData.farmer.name}
+                    </Badge>
+                  )}
+                </CardTitle>
+                <button
+                  onClick={() => setShowFullReport(false)}
+                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
+                  title="Close report"
+                  aria-label="Close report"
+                >
+                  <X className="size-5" />
+                </button>
+              </CardHeader>
+              <CardContent className="space-y-6 p-6">
+                {loadingReport ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <div className="size-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                      <p className="text-slate-400">Loading report data...</p>
+                    </div>
+                  </div>
+                ) : fullReportData?.error ? (
+                  <div className="text-center py-12">
+                    <AlertTriangle className="size-12 text-red-400 mx-auto mb-4" />
+                    <p className="text-red-400">{fullReportData.error}</p>
+                  </div>
+                ) : fullReportData ? (
+                  <>
+                    {/* Summary Stats */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                        <p className="text-slate-400 text-xs mb-1">Trust Score</p>
+                        <p className={`text-2xl font-bold ${fullReportData.trustScore > 80 ? 'text-emerald-400' : fullReportData.trustScore > 50 ? 'text-amber-400' : 'text-red-400'}`}>
+                          {fullReportData.trustScore?.toFixed(1) || 0}%
+                        </p>
+                      </div>
+                      <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                        <p className="text-slate-400 text-xs mb-1">Total Readings</p>
+                        <p className="text-2xl font-bold text-blue-400">{fullReportData.readingsCount}</p>
+                      </div>
+                      <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                        <p className="text-slate-400 text-xs mb-1">Verified Anchors</p>
+                        <p className="text-2xl font-bold text-purple-400">{fullReportData.anchorsCount}</p>
+                      </div>
+                      <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                        <p className="text-slate-400 text-xs mb-1">IoT Devices</p>
+                        <p className="text-2xl font-bold text-cyan-400">{fullReportData.devices?.length || 0}</p>
+                      </div>
+                    </div>
+
+                    {/* Verification Summary */}
+                    {fullReportData.verification && (
+                      <div className={`rounded-lg p-4 border ${
+                        fullReportData.verification.summary?.tamperedDays === 0
+                          ? 'bg-emerald-500/10 border-emerald-500/30'
+                          : 'bg-red-500/10 border-red-500/30'
+                      }`}>
+                        <div className="flex items-center gap-3 mb-3">
+                          {fullReportData.verification.summary?.tamperedDays === 0 ? (
+                            <CheckCircle2 className="size-6 text-emerald-400" />
+                          ) : (
+                            <AlertTriangle className="size-6 text-red-400" />
+                          )}
+                          <h3 className={`text-lg font-semibold ${
+                            fullReportData.verification.summary?.tamperedDays === 0 ? 'text-emerald-400' : 'text-red-400'
+                          }`}>
+                            {fullReportData.verification.summary?.tamperedDays === 0 
+                              ? '21-Day Integrity Check Passed' 
+                              : 'Data Integrity Issues Detected'}
+                          </h3>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div>
+                            <p className="text-slate-400 text-xs">Verified Days</p>
+                            <p className="text-emerald-400 text-xl font-bold">
+                              {fullReportData.verification.summary?.verifiedDays || 0}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-slate-400 text-xs">Tampered Days</p>
+                            <p className="text-red-400 text-xl font-bold">
+                              {fullReportData.verification.summary?.tamperedDays || 0}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-slate-400 text-xs">Integrity Score</p>
+                            <p className="text-blue-400 text-xl font-bold">
+                              {fullReportData.verification.summary?.integrityPercentage || 0}%
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Daily Audit Records */}
+                    {fullReportData.auditRecords && fullReportData.auditRecords.length > 0 && (
+                      <div>
+                        <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                          <Calendar className="size-4 text-purple-400" />
+                          Daily Audit Records (Last 30 Days)
+                        </h3>
+                        <div className="bg-slate-800/30 rounded-lg border border-slate-700 overflow-hidden">
+                          <div className="max-h-60 overflow-y-auto">
+                            <table className="w-full text-sm">
+                              <thead className="bg-slate-800 sticky top-0">
+                                <tr>
+                                  <th className="text-left text-slate-400 p-3">Date</th>
+                                  <th className="text-left text-slate-400 p-3">Status</th>
+                                  <th className="text-left text-slate-400 p-3">Readings</th>
+                                  <th className="text-left text-slate-400 p-3">Merkle Root</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {fullReportData.auditRecords.map((record: any, idx: number) => (
+                                  <tr key={idx} className="border-t border-slate-700/50 hover:bg-slate-800/50">
+                                    <td className="p-3 text-white">{record.dayKey}</td>
+                                    <td className="p-3">
+                                      <Badge 
+                                        variant="outline" 
+                                        className={
+                                          record.status === 'kept_verified' 
+                                            ? 'border-emerald-500/40 text-emerald-400'
+                                            : record.status === 'kept_tampered' || record.status === 'global_tamper'
+                                            ? 'border-red-500/40 text-red-400'
+                                            : 'border-slate-500/40 text-slate-400'
+                                        }
+                                      >
+                                        {record.status?.replace(/_/g, ' ') || 'unknown'}
+                                      </Badge>
+                                    </td>
+                                    <td className="p-3 text-blue-400">{record.readingCount || 0}</td>
+                                    <td className="p-3 font-mono text-xs text-slate-500 truncate max-w-[200px]">
+                                      {record.computedRoot || '-'}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Recent Readings */}
+                    {fullReportData.recentReadings && fullReportData.recentReadings.length > 0 && (
+                      <div>
+                        <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                          <Activity className="size-4 text-blue-400" />
+                          Recent Sensor Readings
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {fullReportData.recentReadings.slice(0, 6).map((reading: any, idx: number) => (
+                            <div key={idx} className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+                              <div className="flex justify-between items-start mb-2">
+                                <Badge variant="outline" className="border-blue-500/40 text-blue-400">
+                                  {reading.payload?.sensor || 'sensor'}
+                                </Badge>
+                                <span className="text-slate-500 text-xs">
+                                  {new Date(reading.ts).toLocaleString()}
+                                </span>
+                              </div>
+                              <p className="text-white text-lg font-semibold">
+                                {reading.payload?.value} {reading.payload?.unit || ''}
+                              </p>
+                              <p className="text-slate-500 text-xs mt-1 font-mono truncate">
+                                Day: {reading.dayKey}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Devices */}
+                    {fullReportData.devices && fullReportData.devices.length > 0 && (
+                      <div>
+                        <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                          <Shield className="size-4 text-cyan-400" />
+                          Registered IoT Devices
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {fullReportData.devices.map((device: any, idx: number) => (
+                            <div key={idx} className="bg-slate-800/50 rounded-lg p-3 border border-slate-700 flex items-center gap-3">
+                              <div className="p-2 rounded-lg bg-cyan-500/10">
+                                <Hash className="size-5 text-cyan-400" />
+                              </div>
+                              <div>
+                                <p className="text-white font-medium">{device.name || device.deviceId}</p>
+                                <p className="text-slate-500 text-xs font-mono">{device.deviceId}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : null}
+
+                <div className="pt-4 border-t border-slate-700">
+                  <Button
+                    onClick={() => setShowFullReport(false)}
+                    className="w-full bg-slate-700 hover:bg-slate-600 text-white"
+                  >
+                    Close Report
                   </Button>
                 </div>
               </CardContent>

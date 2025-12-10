@@ -19,6 +19,9 @@ export function Dashboard() {
 
   useEffect(() => {
     fetchDashboardData();
+    // Auto-refresh dashboard data every 30 seconds
+    const interval = setInterval(fetchDashboardData, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchDashboardData = async () => {
@@ -29,9 +32,21 @@ export function Dashboard() {
         api.dashboard.getRecentAnchors(5),
       ]);
 
-      setStats(statsRes.data);
-      setTimelineData(timelineRes.data);
-      setRecentAnchors(anchorsRes.data);
+      // Handle API response format
+      setStats({
+        totalReadings: statsRes.data.totalReadings || 0,
+        verifiedDays: statsRes.data.verifiedDays || 0,
+        activeWitnesses: statsRes.data.activeWitnesses || 0,
+        dataIntegrity: statsRes.data.dataIntegrity || 0,
+      });
+      
+      // Timeline data should be an array
+      const timeline = Array.isArray(timelineRes.data) ? timelineRes.data : [];
+      setTimelineData(timeline);
+      
+      // Anchors should be an array
+      const anchors = Array.isArray(anchorsRes.data) ? anchorsRes.data : [];
+      setRecentAnchors(anchors);
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
@@ -157,60 +172,6 @@ export function Dashboard() {
                   />
                 </AreaChart>
               </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
-      {/* Daily Status Grid */}
-      {timelineData.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="text-white">Daily Verification Status</CardTitle>
-              <p className="text-slate-400 text-sm">Click any day for detailed verification report</p>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-10 gap-2">
-                {timelineData.map((day, index) => (
-                  <motion.button
-                    key={day.date}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.02 }}
-                    whileHover={{ scale: 1.1 }}
-                    className={`aspect-square rounded-lg flex flex-col items-center justify-center p-2 transition-all ${
-                      day.verified
-                        ? 'bg-emerald-500/20 border border-emerald-500/40 hover:bg-emerald-500/30'
-                        : 'bg-red-500/20 border border-red-500/40 hover:bg-red-500/30'
-                    }`}
-                    title={`${day.date}: ${day.verified ? 'Verified' : 'Tampered'}`}
-                  >
-                    {day.verified ? (
-                      <CheckCircle2 className="size-4 text-emerald-400" />
-                    ) : (
-                      <AlertTriangle className="size-4 text-red-400" />
-                    )}
-                    <span className="text-xs text-slate-400 mt-1">
-                      {new Date(day.date).getDate()}
-                    </span>
-                  </motion.button>
-                ))}
-              </div>
-              <div className="flex items-center gap-6 mt-6">
-                <div className="flex items-center gap-2">
-                  <div className="size-4 rounded bg-emerald-500/20 border border-emerald-500/40" />
-                  <span className="text-slate-400 text-sm">Verified</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="size-4 rounded bg-red-500/20 border border-red-500/40" />
-                  <span className="text-slate-400 text-sm">Tampered</span>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </motion.div>
